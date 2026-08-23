@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda del Día → Prepantilla → Asignación</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#e8eaed; --muted:#9aa1ac; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6; --green:#22c55e;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh;}
+
+  .sidebar{width:280px; background:#0b0d12; border-right:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; padding:20px 16px; overflow-y:auto;}
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .brand .dot{width:12px; height:12px; border-radius:3px; background:var(--amber);}
+  .brand h1{font-size:15px; margin:0; font-weight:700;}
+  .brand span{font-size:11px; color:var(--muted); display:block;}
+
+  .side-section{margin-bottom:16px;}
+  .side-label{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:8px; font-weight:600;}
+
+  .field{margin-bottom:8px;}
+  .field label{font-size:11px; color:var(--muted); display:block; margin-bottom:4px;}
+  .field input{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:7px 9px; border-radius:6px; font-size:12.5px;}
+  .field input:focus{outline:none; border-color:var(--amber);}
+
+  .btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:.15s; margin-bottom:8px;}
+  .btn:hover{border-color:var(--amber);}
+  .btn-primary{background:var(--amber); color:#1a1200; border-color:var(--amber);}
+  .btn-primary:hover{background:#fbbf24;}
+  .btn-ok{background:var(--green); color:#062412; border-color:var(--green);}
+  .btn-ok:hover{background:#34d67a;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  input[type=file]{display:none;}
+
+  .att-status{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:12px;}
+  .att-status.ok{border-color:var(--green);}
+  .att-status b{color:var(--green); display:block; font-size:13px; margin-bottom:2px;}
+  .att-status.pending b{color:var(--amber);}
+
+  .stat{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px;}
+  .stat b{font-size:20px; color:var(--amber); display:block;}
+  .stat span{font-size:11px; color:var(--muted);}
+
+  .filename{font-size:11px; color:var(--muted); margin-top:4px; word-break:break-all;}
+  .filename-row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px;}
+  .filename-row .filename{margin-top:0; flex:1;}
+  .file-del-btn{background:none; border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:11px; padding:3px 7px; border-radius:6px; flex-shrink:0;}
+  .file-del-btn:hover{color:var(--red); border-color:var(--red);}
+  .footer-note{margin-top:auto; font-size:10.5px; color:var(--muted); line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
+
+  .main{flex:1; padding:22px 26px; overflow-x:auto; display:flex; flex-direction:column;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:16px; flex-wrap:wrap;}
+  .topbar h2{margin:0; font-size:18px;}
+  .search{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:13px; width:220px;}
+  .search:focus{outline:none; border-color:var(--amber);}
+
+  .tabs{display:flex; gap:6px; margin-bottom:14px;}
+  .tab-btn{padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--muted); font-size:13px; font-weight:600; cursor:pointer;}
+  .tab-btn.active{background:var(--amber); color:#1a1200; border-color:var(--amber);}
+
+  .empty{display:flex; flex-direction:column; align-items:center; justify-content:center; height:55vh; color:var(--muted); text-align:center;}
+  .empty .big{font-size:42px; margin-bottom:10px;}
+  .empty p{max-width:460px; font-size:13px; line-height:1.6;}
+
+  table{border-collapse:collapse; width:100%; font-size:12.5px; background:var(--panel);}
+  thead th{position:sticky; top:0; background:#12141a; color:var(--amber); text-align:left; padding:8px 9px; border-bottom:2px solid var(--border); white-space:nowrap; font-size:11px; text-transform:uppercase; letter-spacing:.3px;}
+  tbody td{padding:6px 9px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  tbody tr.aux-row{color:var(--muted);}
+  tbody tr:hover{background:var(--panel2);}
+  td[contenteditable="true"]{cursor:text;}
+  td[contenteditable="true"]:focus{outline:2px solid var(--amber); outline-offset:-2px; background:#20242e;}
+  td.tag-dino{color:var(--red);}
+  td.tag-cardenas{color:var(--blue);}
+  td.tag-gahu{color:var(--amber);}
+  td.tag-matched{color:var(--green);}
+  td.tag-ambiguous{background:rgba(245,158,11,.18);}
+  td.needs-review{background:rgba(245,158,11,.10);}
+  .col-actions{text-align:center;}
+  .icon-btn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px;}
+  .icon-btn:hover{color:var(--red);}
+
+  .legend{display:flex; gap:16px; align-items:center; font-size:11px; color:var(--muted); margin-top:10px; flex-wrap:wrap;}
+  .legend .dot2{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:middle;}
+
+  .table-wrap{border:1px solid var(--border); border-radius:10px; overflow:auto; max-height:calc(100vh - 250px); flex:1;}
+
+  ::-webkit-scrollbar{height:10px; width:10px;}
+  ::-webkit-scrollbar-thumb{background:#2a2f3a; border-radius:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .toast{position:fixed; bottom:20px; right:20px; background:var(--panel2); border:1px solid var(--amber); color:var(--text); padding:12px 18px; border-radius:8px; font-size:13px; box-shadow:0 4px 20px rgba(0,0,0,.4); opacity:0; transform:translateY(10px); transition:.25s; pointer-events:none; z-index:50;}
+  .toast.show{opacity:1; transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>Agenda → Prepantilla → Asignación</h1>
+      <span>Flujo diario de rutas</span>
+    </div>
+  </div>
+
+  <div class="side-section">
+    <div class="side-label">Asistencia (se guarda una sola vez)</div>
+    <div class="att-status pending" id="attStatus">
+      <b>Sin cargar</b>
+      Carga el archivo de asistencia una vez; luego solo necesitas cargar la Agenda cada día.
+    </div>
+    <input type="file" id="fileAsistencia" accept=".csv,.txt">
+    <button class="btn" id="btnLoadAsistencia">📂 Cargar / actualizar Asistencia</button>
+    <button class="btn" id="btnDeleteAsistencia" style="display:none;">✕ Eliminar Asistencia cargada</button>
+  </div>
+
+  <div class="side-section">
+    <div class="side-label">Agenda del día (.xlsx)</div>
+    <input type="file" id="fileAgenda" accept=".xlsx,.xls">
+    <button class="btn btn-primary" id="btnLoadAgenda">📂 Cargar Agenda → generar Prepantilla</button>
+    <div class="filename-row">
+      <div class="filename" id="fileNameAgenda">Ningún archivo cargado</div>
+      <button class="file-del-btn" id="btnDeleteAgenda" style="display:none;" title="Eliminar archivo y datos generados">✕</button>
+    </div>
+  </div>
+
+  <div class="side-section">
+    <div class="side-label">Datos para Asignación</div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="inFecha">
+    </div>
+    <div class="field">
+      <label>Sala / Agencia</label>
+      <input type="text" id="inSala" value="VES">
+    </div>
+    <div class="field">
+      <label>Canal</label>
+      <input type="text" id="inCanal" value="SUR">
+    </div>
+    <div class="field">
+      <label>Zona</label>
+      <input type="text" id="inZona" value="LIMA">
+    </div>
+  </div>
+
+  <div class="side-section" id="statsBox" style="display:none;">
+    <div class="side-label">Resumen</div>
+    <div class="stat"><b id="stRutas">0</b><span>Rutas en la Prepantilla</span></div>
+    <div class="stat"><b id="stMatched">0</b><span>Nombres identificados en asistencia</span></div>
+    <div class="stat"><b id="stTag">0</b><span>Con sufijo (DINO/CARDENAS/GAHU)</span></div>
+  </div>
+
+  <div class="side-section" id="checklistBox" style="display:none;">
+    <div class="side-label">Checklist (completa datos faltantes)</div>
+    <input type="file" id="fileChecklist" accept=".xlsx,.xls">
+    <button class="btn" id="btnLoadChecklist">📂 Cargar Checklist</button>
+    <div class="filename-row">
+      <div class="filename" id="fileNameChecklist">Ningún archivo cargado</div>
+      <button class="file-del-btn" id="btnDeleteChecklist" style="display:none;" title="Olvidar checklist cargado">✕</button>
+    </div>
+  </div>
+
+  <div class="side-section" id="actionsBox" style="display:none;">
+    <div class="side-label">Acciones</div>
+    <button class="btn" id="btnAddRow">➕ Agregar fila a Prepantilla</button>
+    <button class="btn" id="btnExportPrep">⬇️ Exportar Prepantilla</button>
+    <button class="btn btn-ok" id="btnGenerarAsignacion">✅ Generar Asignación</button>
+    <button class="btn" id="btnExportAsig" style="display:none;">⬇️ Exportar Asignación</button>
+    <button class="btn" id="btnClear">🗑️ Borrar todo</button>
+  </div>
+
+  <div class="footer-note">
+    En la Prepantilla, <b style="color:#f59e0b">TRANS, PLACA, TP, DISTRITO, HORAS, DISTANCIAS, PARADAS, CAPACIDAD, GAL y PESO</b> no vienen en la Agenda — quedan en blanco para completarlos a mano (CAJAS sí se toma del PQT de la agenda). Todo es editable, en ambas pestañas.
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h2 id="mainTitle">Prepantilla</h2>
+    <div class="toolbar" id="toolbar" style="display:none;">
+      <input type="text" class="search" id="searchBox" placeholder="Buscar ruta, nombre, placa...">
+      <button class="btn" id="btnClearPrep" style="width:auto; margin-bottom:0; padding:8px 14px;">🗑️ Borrar todo</button>
+      <button class="btn" id="btnClearAsig" style="width:auto; margin-bottom:0; padding:8px 14px; display:none;">🗑️ Borrar todo</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none;">
+    <button class="tab-btn active" id="tabPrep">Prepantilla</button>
+    <button class="tab-btn" id="tabAsig">Asignación</button>
+  </div>
+
+  <div id="emptyState" class="empty">
+    <div class="big">🗓️</div>
+    <p>Este sistema arma tu día en 3 pasos: <b>Agenda → Prepantilla → Asignación</b>.<br>La Asistencia se carga una sola vez (barra lateral) y luego se reutiliza.</p>
+    <button class="btn btn-primary" id="btnStart" style="width:auto; padding:14px 28px; font-size:14px; margin-top:6px;">📂 Cargar Agenda y comenzar</button>
+  </div>
+
+  <div id="tableAreaPrep" style="display:none; flex:1; flex-direction:column;">
+    <div class="table-wrap">
+      <table id="prepTable">
+        <thead><tr id="prepHeadRow"></tr></thead>
+        <tbody id="prepBodyRows"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span><span class="dot2" style="background:var(--green);"></span>Identificado en asistencia</span>
+      <span><span class="dot2" style="background:var(--red);"></span>DINO (rojo, sin match)</span>
+      <span><span class="dot2" style="background:var(--blue);"></span>CARDENAS (azul / "(C)")</span>
+      <span><span class="dot2" style="background:var(--amber);"></span>GAHU ("(G)")</span>
+      <span><span class="swatch" style="background:rgba(245,158,11,.5); width:10px; height:10px; display:inline-block; border-radius:2px; margin-right:5px; vertical-align:middle;"></span>Campo no incluido en la Agenda — completar a mano</span>
+    </div>
+  </div>
+
+  <div id="tableAreaAsig" style="display:none; flex:1; flex-direction:column;">
+    <div class="table-wrap">
+      <table id="asigTable">
+        <thead><tr id="asigHeadRow"></tr></thead>
+        <tbody id="asigBodyRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const AUX_LABELS = ['1ER','2DO','3RO','4TO','5TO'];
+const PREP_COLUMNS = ['TRANS','RUTA','PLACA','TP','CONDUCTOR','TEL','DISTRITO', ...AUX_LABELS, 'CANT. PAQ.','HORAS','DISTANCIAS','PARADAS','CAPACIDAD','CAJAS','GAL','PESO'];
+const PREP_MANUAL = new Set(['TRANS','PLACA','TP','DISTRITO','CANT. PAQ.','HORAS','DISTANCIAS','PARADAS','CAPACIDAD','GAL','PESO']);
+
+const ASIG_COLUMNS = ['NUMERACION','SALA(Agencia)','CANAL(Sala','FECHA','HORA DE SALIDA','DIA','MES','ESTADO LAB.','PROCEDENCIA','CARGO','PERSONAL','PLACA','ZONA ROJA','TIPO','RECARGA','PALLETS','AUXILIARES','RECURSO','ID de ruta','TOTAL HORAS','Distancia KM','Paradas','% de capacidad','Equivalen','Peso','Paquetes','ZONA','Km Real','TR Real','NUMERO DE TRANSPORTE','NUMERO CELULAR','DISTRITO'];
+const ASIG_MANUAL = new Set(['ESTADO LAB.','PROCEDENCIA']);
+const CARGO_CONDUCTOR = 'CONDUCTOR DE DISTRIBUCION CANAL TRADICIONAL';
+const CARGO_AUXILIAR = 'AUXILIAR DE DISTRIBUCION CANAL TRADICIONAL';
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+let prepRows = [];
+let asigRows = [];
+let prepIdCounter = 0;
+let asigIdCounter = 0;
+let attendanceRows = [];
+let attendanceLoaded = false;
+let currentTab = 'prep';
+let checklistMap = {}; // RUTA(string) -> {trans, placa, tipo, horas, distancia, paradas, capacidad, cajas, cantPaq, peso}
+
+// ---------- Normalización ----------
+function stripAccents(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function normalizeName(s){
+  let t = stripAccents(String(s||'')).toUpperCase();
+  t = t.replace(/\(.*?\)/g,' ').replace(/[^A-Z\s]/g,' ');
+  return t.split(/\s+/).filter(Boolean).join(' ');
+}
+function normalizeHeader(h){ return stripAccents(String(h==null?'':h)).toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function escapeHtml(v){ return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function cleanNumberString(v, decimals){
+  if(v == null || v === '') return '';
+  const num = Number(v);
+  if(isNaN(num)) return String(v).trim();
+  return decimals == null ? String(num) : String(Math.round(num*Math.pow(10,decimals))/Math.pow(10,decimals));
+}
+function cleanTel(v){
+  if(v == null || v === '') return '';
+  const num = Number(v);
+  if(isNaN(num)) return String(v).trim();
+  return String(Math.round(num));
+}
+function fechaToDiaMes(fechaStr){
+  if(!fechaStr) return {dia:'', mes:''};
+  const d = new Date(fechaStr+'T00:00:00');
+  if(isNaN(d.getTime())) return {dia:'', mes:''};
+  return {dia: DIAS[d.getDay()], mes: MESES[d.getMonth()]};
+}
+
+// ---------- Asistencia ----------
+async function parseAttendanceFile(file){
+  const buf = await file.arrayBuffer();
+  let text;
+  try{ text = new TextDecoder('windows-1252').decode(buf); }
+  catch(e){ text = new TextDecoder('utf-8').decode(buf); }
+  const delimiter = text.split('\n')[0].includes('\t') ? '\t' : ',';
+  const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length);
+  if(!lines.length) return [];
+  const headers = lines[0].split(delimiter).map(h => normalizeHeader(h));
+  let idxName = headers.findIndex(h => h.includes('APELLIDOYNOMBRE'));
+  if(idxName < 0) idxName = headers.findIndex(h => h.includes('NOMBRE'));
+  const idxEmpresa = headers.findIndex(h => h.includes('EMPRESA'));
+  const out = [];
+  for(let i=1;i<lines.length;i++){
+    const cols = lines[i].split(delimiter);
+    const name = (cols[idxName]||'').trim();
+    if(!name) continue;
+    const empresa = idxEmpresa>=0 ? (cols[idxEmpresa]||'').trim() : '';
+    out.push({ name, words: normalizeName(name).split(' ').filter(Boolean), empresa });
+  }
+  return out;
+}
+function lookupEmpresaFijo(personName){
+  const words = normalizeName(personName).split(' ').filter(Boolean);
+  if(!words.length) return null;
+  const candidates = attendanceRows.filter(r => words.every(w => r.words.includes(w)));
+  if(!candidates.length) return null;
+  return candidates[0].empresa || '';
+}
+
+const SUFFIX_PROCEDENCIA = {
+  'DINO': 'EVENTUAL 5',
+  'GAHU': 'EVENTUAL 2',
+  'CARDENAS': 'EVENTUAL 11',
+  'SEMELEC': 'EVENTUAL',
+};
+function resolveEstadoProcedencia(personName){
+  const name = String(personName||'');
+  for(const suf in SUFFIX_PROCEDENCIA){
+    if(name.includes('- '+suf)){
+      return { estado: '', procedencia: SUFFIX_PROCEDENCIA[suf] };
+    }
+  }
+  const empresa = lookupEmpresaFijo(name);
+  if(empresa != null){
+    const empresaNorm = stripAccents(empresa).toUpperCase().trim();
+    const procedencia = empresaNorm === 'JAZ HOLDING' ? 'EVENTUAL 5' : empresa;
+    return { estado: 'FIJO', procedencia };
+  }
+  return { estado: '', procedencia: '' };
+}
+function findAttendanceMatch(cleanName){
+  const words = normalizeName(cleanName).split(' ').filter(Boolean);
+  if(!words.length) return {name:null, ambiguous:false};
+  const candidates = attendanceRows.filter(r => words.every(w => r.words.includes(w)));
+  if(!candidates.length) return {name:null, ambiguous:false};
+  return {name: candidates[0].name, ambiguous: candidates.length > 1};
+}
+function saveAttendanceToStorage(){
+  try{ localStorage.setItem('flujo_rutas_asistencia', JSON.stringify(attendanceRows)); }catch(e){}
+}
+function loadAttendanceFromStorage(){
+  try{
+    const raw = localStorage.getItem('flujo_rutas_asistencia');
+    if(raw){
+      attendanceRows = JSON.parse(raw);
+      attendanceLoaded = attendanceRows.length > 0;
+    }
+  }catch(e){}
+}
+function updateAttStatusUI(){
+  const box = $('attStatus');
+  if(attendanceLoaded){
+    box.classList.remove('pending'); box.classList.add('ok');
+    box.innerHTML = `<b>✓ ${attendanceRows.length} personas cargadas</b>Se reutiliza automáticamente cada vez que abras este sistema.`;
+    $('btnDeleteAsistencia').style.display = 'block';
+  } else {
+    box.classList.add('pending'); box.classList.remove('ok');
+    box.innerHTML = `<b>Sin cargar</b>Carga el archivo de asistencia una vez; luego solo necesitas cargar la Agenda cada día.`;
+    $('btnDeleteAsistencia').style.display = 'none';
+  }
+}
+
+// ---------- Lectura de Agenda con colores (JSZip) ----------
+function addrToColRow(addr){ const m = addr.match(/^([A-Z]+)(\d+)$/); return { col: m[1], row: parseInt(m[2],10) }; }
+function colLettersToNum(letters){ let n=0; for(const ch of letters) n = n*26 + (ch.charCodeAt(0)-64); return n; }
+
+async function readAgendaWithColors(file){
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  const parser = new DOMParser();
+
+  const workbookXml = await zip.file('xl/workbook.xml').async('string');
+  const workbookDoc = parser.parseFromString(workbookXml, 'application/xml');
+  const sheetEl = workbookDoc.getElementsByTagName('sheet')[0];
+  let rId = sheetEl.getAttribute('r:id');
+  if(!rId){ for(const attr of sheetEl.attributes){ if(attr.name.endsWith(':id') || attr.name==='id'){ rId = attr.value; break; } } }
+
+  let sheetPath = 'xl/worksheets/sheet1.xml';
+  const relsFile = zip.file('xl/_rels/workbook.xml.rels');
+  if(relsFile){
+    const relsXml = await relsFile.async('string');
+    const relsDoc = parser.parseFromString(relsXml, 'application/xml');
+    for(const rel of relsDoc.getElementsByTagName('Relationship')){
+      if(rel.getAttribute('Id') === rId){
+        let target = rel.getAttribute('Target').replace(/^\.?\//,'');
+        sheetPath = target.startsWith('xl/') ? target : ('xl/'+target);
+        break;
+      }
+    }
+  }
+
+  let fonts = [], cellXfs = [];
+  const stylesFile = zip.file('xl/styles.xml');
+  if(stylesFile){
+    const stylesDoc = parser.parseFromString(await stylesFile.async('string'), 'application/xml');
+    const fontsEl = stylesDoc.getElementsByTagName('fonts')[0];
+    if(fontsEl) for(const fontEl of fontsEl.getElementsByTagName('font')){
+      const colorEl = fontEl.getElementsByTagName('color')[0];
+      fonts.push({ rgb: colorEl ? colorEl.getAttribute('rgb') : null });
+    }
+    const cellXfsEl = stylesDoc.getElementsByTagName('cellXfs')[0];
+    if(cellXfsEl) for(const xf of cellXfsEl.getElementsByTagName('xf')){
+      cellXfs.push({ fontId: parseInt(xf.getAttribute('fontId')||'0',10) });
+    }
+  }
+
+  let sharedStrings = [];
+  const sstFile = zip.file('xl/sharedStrings.xml');
+  if(sstFile){
+    const sstDoc = parser.parseFromString(await sstFile.async('string'), 'application/xml');
+    for(const si of sstDoc.getElementsByTagName('si')){
+      const texts = [];
+      for(const t of si.getElementsByTagName('t')) texts.push(t.textContent);
+      sharedStrings.push(texts.join(''));
+    }
+  }
+
+  const sheetDoc = parser.parseFromString(await zip.file(sheetPath).async('string'), 'application/xml');
+  const grid = {};
+  let maxRow=0, maxCol=0;
+  for(const c of sheetDoc.getElementsByTagName('c')){
+    const addr = c.getAttribute('r');
+    if(!addr) continue;
+    const {col, row} = addrToColRow(addr);
+    const colNum = colLettersToNum(col);
+    maxRow = Math.max(maxRow, row); maxCol = Math.max(maxCol, colNum);
+
+    const type = c.getAttribute('t');
+    const sIdx = c.getAttribute('s');
+    const vEl = c.getElementsByTagName('v')[0];
+    let value = '';
+    if(type === 's'){
+      const idx = parseInt(vEl ? vEl.textContent : '-1', 10);
+      value = sharedStrings[idx] != null ? sharedStrings[idx] : '';
+    } else if(type === 'inlineStr'){
+      const isEl = c.getElementsByTagName('is')[0];
+      value = isEl ? isEl.textContent : '';
+    } else {
+      value = vEl ? vEl.textContent : '';
+    }
+    let rgb = null;
+    if(sIdx != null){
+      const xf = cellXfs[parseInt(sIdx,10)];
+      if(xf && fonts[xf.fontId] && fonts[xf.fontId].rgb) rgb = fonts[xf.fontId].rgb;
+    }
+    grid[row+'-'+colNum] = { value, rgb };
+  }
+  return { grid, maxRow, maxCol };
+}
+
+function resolvePersona(cellObj){
+  if(!cellObj || cellObj.value == null || String(cellObj.value).trim()==='') return { final:'', matched:false, ambiguous:false, tag:'' };
+  const raw = String(cellObj.value).trim();
+  const clean = raw.replace(/\(.*?\)/g,'').trim();
+  const hasG = /\(G\)/i.test(raw);
+  const hasC = /\(C\)/i.test(raw);
+  const rgb = cellObj.rgb ? cellObj.rgb.slice(-6).toUpperCase() : null;
+  const isRed = rgb === 'FF0000';
+  const isBlue = rgb === '0000FF';
+  let tag = '';
+  if(isRed) tag = 'DINO';
+  else if(isBlue || hasC) tag = 'CARDENAS';
+  else if(hasG) tag = 'GAHU';
+
+  // Un marcador de texto explícito ((G) o (C)) es una marca deliberada de quien arma
+  // la agenda, y tiene prioridad sobre un cruce automático contra asistencia — esto
+  // evita que alguien marcado como GAHU/CARDENAS termine identificado por un cruce
+  // casual de nombre (GAHU, a diferencia de DINO/CARDENAS, sí puede aparecer también
+  // como empresa real en asistencia).
+  if(hasG || hasC){
+    return { final: `${clean} - ${tag}`, matched:false, ambiguous:false, tag };
+  }
+
+  const {name: match, ambiguous} = findAttendanceMatch(clean);
+  if(match) return { final: match, matched:true, ambiguous, tag:'' };
+  return { final: tag ? `${clean} - ${tag}` : clean, matched:false, ambiguous:false, tag };
+}
+
+async function processAgendaToPrepantilla(file){
+  const { grid, maxRow, maxCol } = await readAgendaWithColors(file);
+  const headerMap = {};
+  for(let c=1;c<=maxCol;c++){
+    const cell = grid['1-'+c];
+    if(cell && cell.value) headerMap[normalizeHeader(cell.value)] = c;
+  }
+  const colRuta = headerMap['RUTAS'];
+  const colTel = headerMap['TELEFONO'];
+  const colChofer = headerMap['CHOFERES'];
+  const colPqt = headerMap['PQT'];
+  const auxCols = [];
+  for(let n=1;n<=5;n++){ const key='AUX'+n; if(headerMap[key]!=null) auxCols.push(headerMap[key]); }
+
+  const results = [];
+  for(let r=2;r<=maxRow;r++){
+    const rutaCell = colRuta ? grid[r+'-'+colRuta] : null;
+    if(!rutaCell || rutaCell.value === '' || rutaCell.value == null) continue;
+
+    const choferInfo = resolvePersona(colChofer ? grid[r+'-'+colChofer] : null);
+    const auxInfos = auxCols.map(c => resolvePersona(grid[r+'-'+c]));
+    const pqtCell = colPqt ? grid[r+'-'+colPqt] : null;
+
+    const rowObj = {
+      _id: 'p'+(prepIdCounter++),
+      TRANS: '', RUTA: cleanTel(rutaCell.value), PLACA: '', TP: '',
+      CONDUCTOR: choferInfo.final, TEL: colTel ? cleanTel(grid[r+'-'+colTel] ? grid[r+'-'+colTel].value : '') : '',
+      DISTRITO: '', 'CANT. PAQ.': '', HORAS: '', DISTANCIAS: '', PARADAS: '', CAPACIDAD: '',
+      CAJAS: pqtCell ? cleanNumberString(pqtCell.value, 3) : '', GAL: '', PESO: '',
+      _cajasFromAgenda: !!(pqtCell && pqtCell.value !== ''),
+      _meta: { CONDUCTOR: choferInfo },
+    };
+    AUX_LABELS.forEach((label, i) => {
+      const info = auxInfos[i] || {final:'', matched:false, ambiguous:false, tag:''};
+      rowObj[label] = info.final;
+      rowObj._meta[label] = info;
+    });
+    results.push(rowObj);
+  }
+  return results;
+}
+
+// ---------- Checklist (rellena datos faltantes) ----------
+function findHeaderRow(aoa, mustIncludeUpper){
+  for(let r=0; r<aoa.length; r++){
+    const rowVals = (aoa[r]||[]).map(v => normalizeHeader(v));
+    if(mustIncludeUpper.every(needle => rowVals.some(v => v.includes(needle)))){
+      return r;
+    }
+  }
+  return -1;
+}
+function buildColMap(headerRow){
+  const map = {};
+  headerRow.forEach((h, i) => { if(h!=null && h!=='') map[normalizeHeader(h)] = i; });
+  return map;
+}
+function findColByIncludes(colMap, needle){
+  for(const key in colMap){ if(key.includes(needle)) return colMap[key]; }
+  return undefined;
+}
+function excelTimeToHHMM(v){
+  if(v == null || v === '') return '';
+  if(typeof v === 'string') return v.trim();
+  const num = Number(v);
+  if(isNaN(num)) return '';
+  if(num >= 1) return String(Math.round(num*100)/100);
+  const totalMinutes = Math.round(num*24*60);
+  const hh = Math.floor(totalMinutes/60), mm = totalMinutes%60;
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+async function parseChecklistFile(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false});
+  const map = {};
+
+  // --- Hoja "Checklist": TRANSPORTE, CODIGO(ruta), PLACAS, TIPO ---
+  const clSheetName = wb.SheetNames.find(n => normalizeHeader(n) === 'CHECKLIST') || wb.SheetNames[0];
+  const clAoa = XLSX.utils.sheet_to_json(wb.Sheets[clSheetName], {header:1, raw:true, defval:''});
+  const clHeaderIdx = findHeaderRow(clAoa, ['TRANSPORTE','PLACAS']);
+  if(clHeaderIdx >= 0){
+    const colMap = buildColMap(clAoa[clHeaderIdx]);
+    const cTrans = colMap['TRANSPORTE'], cCodigo = colMap['CODIGO'], cPlaca = colMap['PLACAS'], cTipo = colMap['TIPO'];
+    for(let r=clHeaderIdx+1; r<clAoa.length; r++){
+      const row = clAoa[r];
+      if(!row || row.every(c=>c==='' || c==null)) continue;
+      const ruta = cCodigo!=null ? String(row[cCodigo]||'').trim() : '';
+      if(!ruta) continue;
+      map[ruta] = map[ruta] || {};
+      if(cTrans!=null) map[ruta].trans = cleanTel(row[cTrans]);
+      if(cPlaca!=null) map[ruta].placa = String(row[cPlaca]||'').trim();
+      if(cTipo!=null) map[ruta].tipo = String(row[cTipo]||'').trim();
+    }
+  }
+
+  // --- Hoja "Data": ID de ruta, Total(horas), Distancia, Paradas, % de capacidad, Cajas Equi., Peso, Cajas Fisicas ---
+  const dataSheetName = wb.SheetNames.find(n => normalizeHeader(n) === 'DATA');
+  if(dataSheetName){
+    const dAoa = XLSX.utils.sheet_to_json(wb.Sheets[dataSheetName], {header:1, raw:true, defval:''});
+    const dHeaderIdx = findHeaderRow(dAoa, ['IDDERUTA','DISTANCIA']);
+    if(dHeaderIdx >= 0){
+      const colMap = buildColMap(dAoa[dHeaderIdx]);
+      const cRuta = colMap['IDDERUTA'], cTotal = colMap['TOTAL'], cDist = colMap['DISTANCIA'],
+            cParadas = colMap['PARADAS'], cCap = findColByIncludes(colMap, 'CAPACIDAD'), cCajasEqui = colMap['CAJASEQUI'],
+            cPeso = colMap['PESO'], cCajasFis = colMap['CAJASFISICAS'];
+      for(let r=dHeaderIdx+1; r<dAoa.length; r++){
+        const row = dAoa[r];
+        if(!row || row.every(c=>c==='' || c==null)) continue;
+        const ruta = cRuta!=null ? String(row[cRuta]||'').trim() : '';
+        if(!ruta) continue;
+        map[ruta] = map[ruta] || {};
+        if(cTotal!=null) map[ruta].horas = excelTimeToHHMM(row[cTotal]);
+        if(cDist!=null) map[ruta].distancia = cleanNumberString(row[cDist], 2);
+        if(cParadas!=null) map[ruta].paradas = cleanNumberString(row[cParadas], 0);
+        if(cCap!=null){
+          const capNum = Number(row[cCap]);
+          map[ruta].capacidad = isNaN(capNum) ? '' : cleanNumberString(capNum/100, 6);
+        }
+        if(cCajasEqui!=null) map[ruta].cajas = cleanNumberString(row[cCajasEqui], 3);
+        if(cPeso!=null) map[ruta].peso = cleanNumberString(row[cPeso], 3);
+        if(cCajasFis!=null) map[ruta].cantPaq = cleanNumberString(row[cCajasFis], 3);
+      }
+    }
+  }
+
+  return map;
+}
+
+function applyChecklistData(map){
+  let filled = 0;
+  prepRows.forEach(p => {
+    const data = map[String(p.RUTA).trim()];
+    if(!data) return;
+    if(!p.TRANS && data.trans){ p.TRANS = data.trans; filled++; }
+    if(!p.PLACA && data.placa){ p.PLACA = data.placa; filled++; }
+    if(!p.TP && data.tipo){ p.TP = data.tipo; filled++; }
+    if(!p.HORAS && data.horas){ p.HORAS = data.horas; filled++; }
+    if(!p.DISTANCIAS && data.distancia!=null && data.distancia!==''){ p.DISTANCIAS = data.distancia; filled++; }
+    if(!p.PARADAS && data.paradas!=null && data.paradas!==''){ p.PARADAS = data.paradas; filled++; }
+    if(!p.CAPACIDAD && data.capacidad!=null && data.capacidad!==''){ p.CAPACIDAD = data.capacidad; filled++; }
+    if(!p.CAJAS && data.cajas!=null && data.cajas!=='' ){ p.CAJAS = data.cajas; filled++; }
+    else if(data.cajas!=null && data.cajas!=='' && p._cajasFromAgenda){ p.CAJAS = data.cajas; filled++; }
+    if(!p['CANT. PAQ.'] && data.cantPaq!=null && data.cantPaq!==''){ p['CANT. PAQ.'] = data.cantPaq; filled++; }
+    if(!p.PESO && data.peso!=null && data.peso!==''){ p.PESO = data.peso; filled++; }
+  });
+  asigRows.forEach(a => {
+    const data = map[String(a['ID de ruta']).trim()];
+    if(!data) return;
+    if(a['CARGO'] === CARGO_CONDUCTOR){
+      if(!a['PLACA'] && data.placa){ a['PLACA'] = data.placa; filled++; }
+      if(!a['TIPO'] && data.tipo){ a['TIPO'] = data.tipo; filled++; }
+      if(!a['NUMERO DE TRANSPORTE'] && data.trans){ a['NUMERO DE TRANSPORTE'] = data.trans; filled++; }
+      if(!a['TOTAL HORAS'] && data.horas){ a['TOTAL HORAS'] = data.horas; filled++; }
+      if(!a['Distancia KM'] && data.distancia!=null && data.distancia!==''){ a['Distancia KM'] = data.distancia; filled++; }
+      if(!a['Paradas'] && data.paradas!=null && data.paradas!==''){ a['Paradas'] = data.paradas; filled++; }
+      if(!a['% de capacidad'] && data.capacidad!=null && data.capacidad!==''){ a['% de capacidad'] = data.capacidad; filled++; }
+      if(!a['Paquetes'] && data.cajas!=null && data.cajas!==''){ a['Paquetes'] = data.cajas; filled++; }
+      if(!a['Peso'] && data.peso!=null && data.peso!==''){ a['Peso'] = data.peso; filled++; }
+    } else {
+      if(!a['PLACA'] && data.placa){ a['PLACA'] = data.placa; filled++; }
+      if(!a['Peso'] && data.peso!=null && data.peso!==''){ a['Peso'] = data.peso; filled++; }
+    }
+  });
+  return filled;
+}
+
+// ---------- Deduplicación ----------
+function dedupePrepRows(){
+  const seen = new Set();
+  const before = prepRows.length;
+  prepRows = prepRows.filter(r => {
+    const key = String(r.RUTA||'').trim() + '||' + normalizeName(r.CONDUCTOR||'');
+    if(key === '||') return true;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return before - prepRows.length;
+}
+function dedupeAsigRows(){
+  const seen = new Set();
+  const before = asigRows.length;
+  asigRows = asigRows.filter(r => {
+    const key = String(r['ID de ruta']||'').trim() + '||' + (r['CARGO']||'') + '||' + normalizeName(r['PERSONAL']||'');
+    if(key === '||||') return true;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return before - asigRows.length;
+}
+
+function generarAsignacionDesdePrepantilla(){
+  if(!prepRows.length){ showToast('No hay filas en la Prepantilla'); return; }
+  const sala = $('inSala').value.trim();
+  const canal = $('inCanal').value.trim();
+  const fecha = $('inFecha').value;
+  const zona = $('inZona').value.trim();
+  const {dia, mes} = fechaToDiaMes(fecha);
+
+  const out = [];
+  let numeracion = 1;
+  prepRows.forEach(p => {
+    const conductor = (p.CONDUCTOR||'').trim();
+    if(!conductor) return;
+    const auxList = AUX_LABELS.map(l => (p[l]||'').trim()).filter(v=>v);
+
+    const conductorInfo = resolveEstadoProcedencia(conductor);
+    out.push({
+      _id: 'a'+(asigIdCounter++),
+      'NUMERACION': numeracion, 'SALA(Agencia)': sala, 'CANAL(Sala': canal, 'FECHA': fecha,
+      'HORA DE SALIDA': '', 'DIA': dia, 'MES': mes,
+      'ESTADO LAB.': conductorInfo.estado,
+      'PROCEDENCIA': conductorInfo.procedencia,
+      'CARGO': CARGO_CONDUCTOR, 'PERSONAL': conductor, 'PLACA': p.PLACA||'', 'ZONA ROJA': 0,
+      'TIPO': p.TP||'', 'RECARGA': '', 'PALLETS': '', 'AUXILIARES': auxList.length, 'RECURSO': '',
+      'ID de ruta': p.RUTA||'', 'TOTAL HORAS': p.HORAS||'', 'Distancia KM': p.DISTANCIAS||'',
+      'Paradas': p.PARADAS||'', '% de capacidad': p.PARADAS||'', 'Equivalen': '', 'Peso': p.PESO||'',
+      'Paquetes': p.CAJAS||'', 'ZONA': zona, 'Km Real': '', 'TR Real': '',
+      'NUMERO DE TRANSPORTE': p.TRANS||'', 'NUMERO CELULAR': p.TEL||'', 'DISTRITO': p.DISTRITO||'',
+    });
+
+    auxList.forEach(nombre => {
+      const info = resolveEstadoProcedencia(nombre);
+      out.push({
+        _id: 'a'+(asigIdCounter++),
+        'NUMERACION': numeracion, 'SALA(Agencia)': sala, 'CANAL(Sala': canal, 'FECHA': fecha,
+        'HORA DE SALIDA': '', 'DIA': dia, 'MES': mes,
+        'ESTADO LAB.': info.estado, 'PROCEDENCIA': info.procedencia,
+        'CARGO': CARGO_AUXILIAR, 'PERSONAL': nombre, 'PLACA': p.PLACA||'', 'ZONA ROJA': '',
+        'TIPO': '', 'RECARGA': '', 'PALLETS': '', 'AUXILIARES': '', 'RECURSO': '',
+        'ID de ruta': p.RUTA||'', 'TOTAL HORAS': '', 'Distancia KM': '', 'Paradas': '',
+        '% de capacidad': '', 'Equivalen': '', 'Peso': p.PESO||'', 'Paquetes': '', 'ZONA': zona,
+        'Km Real': '', 'TR Real': '', 'NUMERO DE TRANSPORTE': '', 'NUMERO CELULAR': '', 'DISTRITO': '',
+      });
+    });
+    numeracion++;
+  });
+
+  asigRows = out;
+  const removedAsig = dedupeAsigRows();
+  renderAsigTable();
+  saveToStorage();
+  $('btnExportAsig').style.display = 'block';
+  $('checklistBox').style.display = 'block';
+  $('btnClearAsig').style.display = 'inline-flex';
+  setTab('asig');
+  showToast(`Asignación generada: ${asigRows.length} fila(s) de personal${removedAsig?` (se quitaron ${removedAsig} duplicado(s))`:''}`);
+}
+
+// ---------- Render Prepantilla ----------
+function renderPrepTable(){
+  $('prepHeadRow').innerHTML = '<th>#</th>' + PREP_COLUMNS.map(c=>`<th>${c}</th>`).join('') + '<th></th>';
+  const body = $('prepBodyRows');
+  const q = $('searchBox').value.trim().toLowerCase();
+  body.innerHTML = '';
+  let vi = 0;
+  prepRows.forEach(row => {
+    const haystack = PREP_COLUMNS.map(c=>String(row[c]||'')).join(' ').toLowerCase();
+    if(q && !haystack.includes(q)) return;
+    vi++;
+    const tr = document.createElement('tr');
+    let cells = `<td>${vi}</td>`;
+    PREP_COLUMNS.forEach(c => {
+      const val = row[c]==null?'':row[c];
+      let cls = '';
+      const meta = row._meta && row._meta[c];
+      if(meta){
+        if(meta.matched) cls = 'tag-matched';
+        else if(meta.tag==='DINO') cls='tag-dino';
+        else if(meta.tag==='CARDENAS') cls='tag-cardenas';
+        else if(meta.tag==='GAHU') cls='tag-gahu';
+        if(meta.ambiguous) cls += ' tag-ambiguous';
+      } else if(PREP_MANUAL.has(c) && val===''){
+        cls = 'needs-review';
+      }
+      cells += `<td contenteditable="true" data-tbl="prep" data-id="${row._id}" data-col="${c}" class="${cls.trim()}">${escapeHtml(val)}</td>`;
+    });
+    cells += `<td class="col-actions"><button class="icon-btn" data-del-prep="${row._id}" title="Eliminar fila">✕</button></td>`;
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+  attachCellHandlers();
+  updateStats();
+}
+
+function renderAsigTable(){
+  $('asigHeadRow').innerHTML = '<th>#</th>' + ASIG_COLUMNS.map(c=>`<th>${c}</th>`).join('') + '<th></th>';
+  const body = $('asigBodyRows');
+  body.innerHTML = '';
+  asigRows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    if(row['CARGO']===CARGO_AUXILIAR) tr.classList.add('aux-row');
+    let cells = `<td>${idx+1}</td>`;
+    ASIG_COLUMNS.forEach(c => {
+      const val = row[c]==null?'':row[c];
+      const cls = ASIG_MANUAL.has(c) && val==='' ? 'needs-review' : '';
+      cells += `<td contenteditable="true" data-tbl="asig" data-id="${row._id}" data-col="${c}" class="${cls}">${escapeHtml(val)}</td>`;
+    });
+    cells += `<td class="col-actions"><button class="icon-btn" data-del-asig="${row._id}" title="Eliminar fila">✕</button></td>`;
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+  attachCellHandlers();
+}
+
+function attachCellHandlers(){
+  document.querySelectorAll('td[contenteditable="true"]').forEach(td => {
+    td.onblur = (e) => {
+      const tbl = e.target.dataset.tbl;
+      const id = e.target.dataset.id;
+      const col = e.target.dataset.col;
+      const arr = tbl === 'prep' ? prepRows : asigRows;
+      const row = arr.find(r => r._id === id);
+      if(row){
+        row[col] = e.target.textContent.trim();
+        if(tbl==='prep' && col==='CAJAS') row._cajasFromAgenda = false;
+        if(tbl==='prep' && row._meta && row._meta[col]){
+          row._meta[col] = { matched:false, ambiguous:false, tag:'' };
+          e.target.className = '';
+        }
+        saveToStorage();
+      }
+    };
+  });
+  document.querySelectorAll('[data-del-prep]').forEach(btn => {
+    btn.onclick = (e) => {
+      prepRows = prepRows.filter(r => r._id !== e.target.dataset.delPrep);
+      renderPrepTable(); saveToStorage(); showToast('Fila eliminada');
+    };
+  });
+  document.querySelectorAll('[data-del-asig]').forEach(btn => {
+    btn.onclick = (e) => {
+      asigRows = asigRows.filter(r => r._id !== e.target.dataset.delAsig);
+      renderAsigTable(); saveToStorage(); showToast('Fila eliminada');
+    };
+  });
+}
+
+function updateStats(){
+  let matched=0, tagged=0;
+  prepRows.forEach(r => {
+    ['CONDUCTOR', ...AUX_LABELS].forEach(c => {
+      const meta = r._meta && r._meta[c];
+      if(!meta || !r[c]) return;
+      if(meta.matched) matched++; else if(meta.tag) tagged++;
+    });
+  });
+  $('stRutas').textContent = prepRows.length;
+  $('stMatched').textContent = matched;
+  $('stTag').textContent = tagged;
+}
+
+function setTab(tab){
+  currentTab = tab;
+  $('tabPrep').classList.toggle('active', tab==='prep');
+  $('tabAsig').classList.toggle('active', tab==='asig');
+  $('tableAreaPrep').style.display = tab==='prep' ? 'flex' : 'none';
+  $('tableAreaAsig').style.display = tab==='asig' ? 'flex' : 'none';
+  $('mainTitle').textContent = tab==='prep' ? 'Prepantilla' : 'Asignación';
+  $('searchBox').style.display = tab==='prep' ? 'block' : 'none';
+  $('btnClearPrep').style.display = tab==='prep' ? 'inline-flex' : 'none';
+  $('btnClearAsig').style.display = (tab==='asig' && asigRows.length) ? 'inline-flex' : 'none';
+}
+
+function showState(){
+  const hasData = prepRows.length > 0;
+  $('emptyState').style.display = hasData ? 'none' : 'flex';
+  $('tabs').style.display = hasData ? 'flex' : 'none';
+  $('toolbar').style.display = hasData ? 'flex' : 'none';
+  $('statsBox').style.display = hasData ? 'block' : 'none';
+  $('actionsBox').style.display = hasData ? 'block' : 'none';
+  $('btnDeleteAgenda').style.display = hasData ? 'inline-flex' : 'none';
+  if(hasData) setTab(currentTab); else { $('tableAreaPrep').style.display='none'; $('tableAreaAsig').style.display='none'; }
+}
+
+function showToast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+function saveToStorage(){
+  try{
+    localStorage.setItem('flujo_rutas_prep', JSON.stringify(prepRows));
+    localStorage.setItem('flujo_rutas_asig', JSON.stringify(asigRows));
+    localStorage.setItem('flujo_rutas_batch', JSON.stringify({
+      fecha: $('inFecha').value, sala: $('inSala').value, canal: $('inCanal').value, zona: $('inZona').value
+    }));
+  }catch(e){}
+}
+function loadFromStorage(){
+  try{
+    const rawP = localStorage.getItem('flujo_rutas_prep');
+    if(rawP){
+      prepRows = JSON.parse(rawP);
+      prepIdCounter = prepRows.reduce((m,r)=>Math.max(m,(parseInt(String(r._id).replace('p',''))||0)),0)+1;
+    }
+    const rawA = localStorage.getItem('flujo_rutas_asig');
+    if(rawA){
+      asigRows = JSON.parse(rawA);
+      asigIdCounter = asigRows.reduce((m,r)=>Math.max(m,(parseInt(String(r._id).replace('a',''))||0)),0)+1;
+      if(asigRows.length){ $('btnExportAsig').style.display = 'block'; $('checklistBox').style.display = 'block'; $('btnClearAsig').style.display = 'inline-flex'; }
+    }
+    const rawB = localStorage.getItem('flujo_rutas_batch');
+    if(rawB){
+      const b = JSON.parse(rawB);
+      $('inFecha').value = b.fecha||'';
+      $('inSala').value = b.sala||'VES';
+      $('inCanal').value = b.canal||'SUR';
+      $('inZona').value = b.zona||'LIMA';
+    }
+  }catch(e){}
+}
+
+// ---------- Eventos ----------
+$('btnLoadAsistencia').addEventListener('click', () => $('fileAsistencia').click());
+$('fileAsistencia').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    attendanceRows = await parseAttendanceFile(file);
+    attendanceLoaded = attendanceRows.length > 0;
+    saveAttendanceToStorage();
+    updateAttStatusUI();
+    showToast(`${attendanceRows.length} persona(s) cargadas de asistencia`);
+  }catch(err){ console.error(err); showToast('Error al leer el archivo de asistencia.'); }
+  e.target.value = '';
+});
+
+$('btnLoadAgenda').addEventListener('click', () => {
+  if(!attendanceLoaded){ showToast('Primero carga el archivo de Asistencia (solo una vez)'); return; }
+  $('fileAgenda').click();
+});
+$('btnStart').addEventListener('click', () => {
+  if(!attendanceLoaded){ showToast('Primero carga el archivo de Asistencia (barra lateral, solo una vez)'); return; }
+  $('fileAgenda').click();
+});
+$('fileAgenda').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  $('fileNameAgenda').textContent = file.name;
+  $('btnDeleteAgenda').style.display = 'inline-flex';
+  try{
+    const parsed = await processAgendaToPrepantilla(file);
+    prepRows = prepRows.concat(parsed);
+    const removed = dedupePrepRows();
+    renderPrepTable();
+    showState();
+    saveToStorage();
+    showToast(`${parsed.length} ruta(s) → Prepantilla generada${removed?` (se quitaron ${removed} duplicado(s))`:''}`);
+  }catch(err){ console.error(err); showToast('Error al leer la agenda. Verifica el formato.'); }
+  e.target.value = '';
+});
+
+$('btnLoadChecklist').addEventListener('click', () => $('fileChecklist').click());
+$('fileChecklist').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  $('fileNameChecklist').textContent = file.name;
+  $('btnDeleteChecklist').style.display = 'inline-flex';
+  try{
+    const map = await parseChecklistFile(file);
+    checklistMap = Object.assign(checklistMap, map);
+    const filled = applyChecklistData(map);
+    renderPrepTable(); renderAsigTable(); saveToStorage();
+    showToast(`Checklist aplicado: ${filled} campo(s) completados`);
+  }catch(err){ console.error(err); showToast('Error al leer el checklist. Verifica el formato.'); }
+  e.target.value = '';
+});
+
+$('searchBox').addEventListener('input', renderPrepTable);
+$('tabPrep').addEventListener('click', () => setTab('prep'));
+$('tabAsig').addEventListener('click', () => setTab('asig'));
+
+$('btnAddRow').addEventListener('click', () => {
+  const empty = { _id: 'p'+(prepIdCounter++), _meta:{} };
+  PREP_COLUMNS.forEach(c => empty[c] = '');
+  prepRows.push(empty);
+  renderPrepTable(); saveToStorage();
+});
+
+$('btnGenerarAsignacion').addEventListener('click', generarAsignacionDesdePrepantilla);
+
+function borrarTodo(){
+  prepRows = []; asigRows = []; checklistMap = {};
+  localStorage.removeItem('flujo_rutas_prep');
+  localStorage.removeItem('flujo_rutas_asig');
+  $('btnExportAsig').style.display = 'none';
+  $('checklistBox').style.display = 'none';
+  $('btnClearAsig').style.display = 'none';
+  $('fileNameAgenda').textContent = 'Ningún archivo cargado';
+  $('fileNameChecklist').textContent = 'Ningún archivo cargado';
+  $('fileAgenda').value = '';
+  $('fileChecklist').value = '';
+  $('btnDeleteAgenda').style.display = 'none';
+  $('btnDeleteChecklist').style.display = 'none';
+  $('searchBox').value = '';
+  currentTab = 'prep';
+  renderPrepTable();
+  renderAsigTable();
+  showState();
+  showToast('Todo borrado. Ya puedes volver a cargar la Agenda.');
+}
+
+$('btnClear').addEventListener('click', () => {
+  if(confirm('¿Borrar la Prepantilla y la Asignación generadas, para volver a cargar archivos desde cero? La Asistencia guardada NO se borra.')){
+    borrarTodo();
+  }
+});
+
+$('btnExportPrep').addEventListener('click', () => {
+  if(!prepRows.length){ showToast('No hay datos para exportar'); return; }
+  const aoa = [PREP_COLUMNS];
+  prepRows.forEach(r => aoa.push(PREP_COLUMNS.map(c => {
+    const v = r[c];
+    if(v==='' || v==null) return '';
+    const num = Number(v);
+    return (!isNaN(num) && /^-?\d+(\.\d+)?$/.test(String(v).trim())) ? num : v;
+  })));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = PREP_COLUMNS.map(c => ({wch: Math.max(10, c.length+2)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+  XLSX.writeFile(wb, `Prepantilla_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Prepantilla exportada');
+});
+
+$('btnExportAsig').addEventListener('click', () => {
+  if(!asigRows.length){ showToast('No hay datos para exportar'); return; }
+  const aoa = [ASIG_COLUMNS];
+  asigRows.forEach(r => aoa.push(ASIG_COLUMNS.map(c => {
+    const v = r[c];
+    if(v==='' || v==null) return '';
+    const num = Number(v);
+    return (!isNaN(num) && /^-?\d+(\.\d+)?$/.test(String(v).trim())) ? num : v;
+  })));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = ASIG_COLUMNS.map(c => ({wch: Math.max(10, c.length+2)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asignación');
+  XLSX.writeFile(wb, `Asignacion_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Asignación exportada');
+});
+
+$('btnDeleteAsistencia').addEventListener('click', () => {
+  if(confirm('¿Eliminar la Asistencia guardada? Tendrás que volver a cargarla para identificar nombres.')){
+    attendanceRows = [];
+    attendanceLoaded = false;
+    localStorage.removeItem('flujo_rutas_asistencia');
+    updateAttStatusUI();
+    showToast('Asistencia eliminada');
+  }
+});
+
+$('btnDeleteAgenda').addEventListener('click', () => {
+  if(confirm('¿Eliminar la Agenda cargada? Esto borra la Prepantilla y la Asignación generadas a partir de ella.')){
+    borrarTodo();
+  }
+});
+
+$('btnDeleteChecklist').addEventListener('click', () => {
+  if(confirm('¿Olvidar el Checklist cargado? Los datos que ya completó en la Prepantilla/Asignación no se revierten, solo se olvida el archivo.')){
+    checklistMap = {};
+    $('fileNameChecklist').textContent = 'Ningún archivo cargado';
+    $('fileChecklist').value = '';
+    $('btnDeleteChecklist').style.display = 'none';
+    showToast('Checklist olvidado');
+  }
+});
+
+$('btnClearPrep').addEventListener('click', () => {
+  if(confirm('¿Borrar todo (Prepantilla y Asignación) para volver a cargar archivos desde cero? La Asistencia guardada NO se borra.')){
+    borrarTodo();
+  }
+});
+$('btnClearAsig').addEventListener('click', () => {
+  if(confirm('¿Borrar todo (Prepantilla y Asignación) para volver a cargar archivos desde cero? La Asistencia guardada NO se borra.')){
+    borrarTodo();
+  }
+});
+
+['inFecha','inSala','inCanal','inZona'].forEach(id => { $(id).addEventListener('input', saveToStorage); });
+
+// Init
+loadAttendanceFromStorage();
+updateAttStatusUI();
+loadFromStorage();
+const dedupPrepAtInit = dedupePrepRows();
+const dedupAsigAtInit = dedupeAsigRows();
+if(dedupPrepAtInit || dedupAsigAtInit) saveToStorage();
+renderPrepTable();
+renderAsigTable();
+showState();
+</script>
+</body>
+</html>
