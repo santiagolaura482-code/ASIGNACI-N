@@ -1007,21 +1007,173 @@ $('btnExportPrep').addEventListener('click', () => {
   showToast('Prepantilla exportada');
 });
 
-$('btnExportAsig').addEventListener('click', () => {
+// ---------- Exportador de Asignación con estilos reales (colores, negrita, fecha DD/MM/AAAA) ----------
+// SheetJS (xlsx.full.min.js) no escribe estilos de forma confiable, así que armamos
+// el .xlsx manualmente (es un ZIP de XML) para poder fijar colores y formatos.
+const ASIG_COL_WIDTHS = [9.3,17.4,15.6,12.1,19.9,9.3,10,11.9,18.3,43.3,35,12.1,4.6,10.3,7,6.3,8.4,7,7.4,5.6,7,5.4,9.7,6.6,7,6.4,5.3,5.7,5.1,8.7,12.6,29.6];
+const ASIG_BOLD_HEADER_COLS = new Set([0,18,19,20,21,22,23,24,25,26,27,28,29,30,31]); // NUMERACION + ID de ruta..DISTRITO
+const ASIG_RED_HEADER_COLS = new Set([8]); // PROCEDENCIA
+const ASIG_ORANGE_HEADER_COLS = new Set([27,28]); // Km Real, TR Real
+const ASIG_PERCENT_COL = 22; // % de capacidad
+const ASIG_THOUSANDS_COL = 25; // Paquetes
+const ASIG_INTEGER_COLS = new Set([16,20]); // AUXILIARES, Distancia KM
+const ASIG_DATE_COL = 3; // FECHA
+const ASIG_PERSONAL_COL = 10; // PERSONAL (se resalta en la fila del conductor)
+
+function xmlEscape(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function colNumToLetters(n){
+  let s = '';
+  while(n > 0){ const m = (n-1)%26; s = String.fromCharCode(65+m)+s; n = Math.floor((n-1)/26); }
+  return s;
+}
+function excelDateSerial(dateStr){
+  // dateStr: 'YYYY-MM-DD'. Serial de Excel: días desde 1899-12-30.
+  const d = new Date(dateStr+'T00:00:00Z');
+  if(isNaN(d.getTime())) return null;
+  const epoch = Date.UTC(1899,11,30);
+  return Math.round((d.getTime() - epoch) / 86400000);
+}
+
+function buildStylesXml(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>
+<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="4">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFFC000"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="9">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>
+<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+// Índices de estilo (deben coincidir con el orden de cellXfs arriba)
+const XF_DEFAULT=0, XF_BOLD=1, XF_RED=2, XF_BOLD_ORANGE=3, XF_ORANGE=4, XF_DATE=5, XF_INT=6, XF_PCT=7, XF_THOUSANDS=8;
+
+function styleForHeaderCell(colIdx){
+  if(ASIG_ORANGE_HEADER_COLS.has(colIdx)) return XF_BOLD_ORANGE;
+  if(ASIG_RED_HEADER_COLS.has(colIdx)) return XF_RED;
+  if(ASIG_BOLD_HEADER_COLS.has(colIdx)) return XF_BOLD;
+  return XF_DEFAULT;
+}
+function styleForBodyCell(colIdx, row){
+  if(colIdx === ASIG_DATE_COL) return XF_DATE;
+  if(colIdx === ASIG_PERCENT_COL) return XF_PCT;
+  if(colIdx === ASIG_THOUSANDS_COL) return XF_THOUSANDS;
+  if(ASIG_INTEGER_COLS.has(colIdx)) return XF_INT;
+  if(colIdx === ASIG_PERSONAL_COL && row['CARGO'] === CARGO_CONDUCTOR) return XF_ORANGE;
+  return XF_DEFAULT;
+}
+
+function buildSheetXml(columns, rows){
+  let rowsXml = '';
+  // Fila de encabezado
+  let headerCells = '';
+  columns.forEach((h, i) => {
+    const ref = colNumToLetters(i+1)+'1';
+    const s = styleForHeaderCell(i);
+    headerCells += `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${xmlEscape(h)}</t></is></c>`;
+  });
+  rowsXml += `<row r="1">${headerCells}</row>`;
+
+  rows.forEach((row, rIdx) => {
+    const r = rIdx + 2;
+    let cells = '';
+    columns.forEach((h, i) => {
+      const ref = colNumToLetters(i+1)+r;
+      const val = row[h];
+      const s = styleForBodyCell(i, row);
+      if(val === '' || val == null){
+        cells += `<c r="${ref}" s="${s}"/>`;
+        return;
+      }
+      if(i === ASIG_DATE_COL){
+        const serial = excelDateSerial(val);
+        if(serial != null){ cells += `<c r="${ref}" s="${s}"><v>${serial}</v></c>`; return; }
+      }
+      const num = Number(val);
+      const isNumericCol = (i === ASIG_PERCENT_COL || i === ASIG_THOUSANDS_COL || ASIG_INTEGER_COLS.has(i) || h==='ZONA ROJA' || h==='NUMERO CELULAR');
+      if(isNumericCol && !isNaN(num) && String(val).trim() !== ''){
+        cells += `<c r="${ref}" s="${s}"><v>${num}</v></c>`;
+      } else if(!isNaN(num) && /^-?\d+(\.\d+)?$/.test(String(val).trim()) && h!=='NUMERO DE TRANSPORTE'){
+        cells += `<c r="${ref}" s="${s}"><v>${num}</v></c>`;
+      } else {
+        cells += `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${xmlEscape(val)}</t></is></c>`;
+      }
+    });
+    rowsXml += `<row r="${r}">${cells}</row>`;
+  });
+
+  const cols = columns.map((h,i) => `<col min="${i+1}" max="${i+1}" width="${ASIG_COL_WIDTHS[i]||12}" customWidth="1"/>`).join('');
+  const dimEnd = colNumToLetters(columns.length)+(rows.length+1);
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<dimension ref="A1:${dimEnd}"/>
+<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<cols>${cols}</cols>
+<sheetData>${rowsXml}</sheetData>
+</worksheet>`;
+}
+
+async function exportAsignacionStyled(){
   if(!asigRows.length){ showToast('No hay datos para exportar'); return; }
-  const aoa = [ASIG_COLUMNS];
-  asigRows.forEach(r => aoa.push(ASIG_COLUMNS.map(c => {
-    const v = r[c];
-    if(v==='' || v==null) return '';
-    const num = Number(v);
-    return (!isNaN(num) && /^-?\d+(\.\d+)?$/.test(String(v).trim())) ? num : v;
-  })));
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = ASIG_COLUMNS.map(c => ({wch: Math.max(10, c.length+2)}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Asignación');
-  XLSX.writeFile(wb, `Asignacion_${new Date().toISOString().slice(0,10)}.xlsx`);
-  showToast('Asignación exportada');
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`);
+  zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`);
+  const sheetName = ($('inFecha').value ? (() => { const [y,m,d]=$('inFecha').value.split('-'); return `${d}.${m}`; })() : 'Asignacion');
+  zip.file('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`);
+  zip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`);
+  zip.file('xl/styles.xml', buildStylesXml());
+  zip.file('xl/worksheets/sheet1.xml', buildSheetXml(ASIG_COLUMNS, asigRows));
+
+  const blob = await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Asignacion_${new Date().toISOString().slice(0,10)}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+$('btnExportAsig').addEventListener('click', () => {
+  exportAsignacionStyled();
+  showToast('Asignación exportada con formato y colores');
 });
 
 $('btnDeleteAsistencia').addEventListener('click', () => {
