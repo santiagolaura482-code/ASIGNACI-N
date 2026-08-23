@@ -12,7 +12,8 @@
     --text:#e8eaed; --muted:#9aa1ac; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6; --green:#22c55e;
   }
   *{box-sizing:border-box;}
-  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh;}
+  html, body{height:100%;}
+  body{margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden;}
 
   .sidebar{width:280px; background:#0b0d12; border-right:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; padding:20px 16px; overflow-y:auto;}
   .brand{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
@@ -53,7 +54,7 @@
   .file-del-btn:hover{color:var(--red); border-color:var(--red);}
   .footer-note{margin-top:auto; font-size:10.5px; color:var(--muted); line-height:1.5; padding-top:12px; border-top:1px solid var(--border);}
 
-  .main{flex:1; padding:22px 26px; overflow-x:auto; display:flex; flex-direction:column;}
+  .main{flex:1; padding:22px 26px; overflow-x:auto; display:flex; flex-direction:column; min-height:0;}
   .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:16px; flex-wrap:wrap;}
   .topbar h2{margin:0; font-size:18px;}
   .search{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px; font-size:13px; width:220px;}
@@ -87,7 +88,7 @@
   .legend{display:flex; gap:16px; align-items:center; font-size:11px; color:var(--muted); margin-top:10px; flex-wrap:wrap;}
   .legend .dot2{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:middle;}
 
-  .table-wrap{border:1px solid var(--border); border-radius:10px; overflow:auto; max-height:calc(100vh - 250px); flex:1;}
+  .table-wrap{border:1px solid var(--border); border-radius:10px; overflow:auto; flex:1; min-height:0;}
 
   ::-webkit-scrollbar{height:10px; width:10px;}
   ::-webkit-scrollbar-thumb{background:#2a2f3a; border-radius:6px;}
@@ -201,7 +202,7 @@
     <button class="btn btn-primary" id="btnStart" style="width:auto; padding:14px 28px; font-size:14px; margin-top:6px;">📂 Cargar Agenda y comenzar</button>
   </div>
 
-  <div id="tableAreaPrep" style="display:none; flex:1; flex-direction:column;">
+  <div id="tableAreaPrep" style="display:none; flex:1; flex-direction:column; min-height:0;">
     <div class="table-wrap">
       <table id="prepTable">
         <thead><tr id="prepHeadRow"></tr></thead>
@@ -217,7 +218,7 @@
     </div>
   </div>
 
-  <div id="tableAreaAsig" style="display:none; flex:1; flex-direction:column;">
+  <div id="tableAreaAsig" style="display:none; flex:1; flex-direction:column; min-height:0;">
     <div class="table-wrap">
       <table id="asigTable">
         <thead><tr id="asigHeadRow"></tr></thead>
@@ -1126,7 +1127,8 @@ function buildSheetXml(columns, rows){
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <dimension ref="A1:${dimEnd}"/>
-<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetViews><sheetView workbookViewId="0"/></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
 <cols>${cols}</cols>
 <sheetData>${rowsXml}</sheetData>
 </worksheet>`;
@@ -1142,7 +1144,6 @@ async function exportAsignacionStyled(){
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`);
@@ -1170,45 +1171,17 @@ async function exportAsignacionStyled(){
 <HyperlinksChanged>false</HyperlinksChanged>
 <AppVersion>16.0300</AppVersion>
 </Properties>`);
-  zip.file('xl/theme/theme1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office">
-<a:themeElements>
-<a:clrScheme name="Office">
-<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
-<a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
-<a:dk2><a:srgbClr val="44546A"/></a:dk2>
-<a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
-<a:accent1><a:srgbClr val="4472C4"/></a:accent1>
-<a:accent2><a:srgbClr val="ED7D31"/></a:accent2>
-<a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>
-<a:accent4><a:srgbClr val="FFC000"/></a:accent4>
-<a:accent5><a:srgbClr val="5B9BD5"/></a:accent5>
-<a:accent6><a:srgbClr val="70AD47"/></a:accent6>
-<a:hlink><a:srgbClr val="0563C1"/></a:hlink>
-<a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
-</a:clrScheme>
-<a:fontScheme name="Office">
-<a:majorFont><a:latin typeface="Calibri Light"/></a:majorFont>
-<a:minorFont><a:latin typeface="Calibri"/></a:minorFont>
-</a:fontScheme>
-<a:fmtScheme name="Office">
-<a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>
-<a:lnStyleLst><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>
-<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>
-<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>
-</a:fmtScheme>
-</a:themeElements>
-</a:theme>`);
   const sheetName = ($('inFecha').value ? (() => { const [y,m,d]=$('inFecha').value.split('-'); return `${d}.${m}`; })() : 'Asignacion');
   zip.file('xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="20000" windowHeight="10000"/></bookViews>
 <sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+<calcPr calcId="0"/>
 </workbook>`);
   zip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
 </Relationships>`);
   zip.file('xl/styles.xml', buildStylesXml());
   zip.file('xl/worksheets/sheet1.xml', buildSheetXml(ASIG_COLUMNS, asigRows));
