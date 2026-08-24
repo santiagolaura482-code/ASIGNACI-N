@@ -630,7 +630,8 @@ function applyChecklistData(map){
   asigRows.forEach(a => {
     const data = map[String(a['ID de ruta']).trim()];
     if(!data) return;
-    if(a['CARGO'] === CARGO_CONDUCTOR){
+    const esFilaDeRuta = a['CARGO'] === CARGO_CONDUCTOR || a['AUXILIARES'] !== '';
+    if(esFilaDeRuta){
       if(!a['PLACA'] && data.placa){ a['PLACA'] = data.placa; filled++; }
       if(!a['TIPO'] && data.tipo){ a['TIPO'] = data.tipo; filled++; }
       if(!a['NUMERO DE TRANSPORTE'] && data.trans){ a['NUMERO DE TRANSPORTE'] = data.trans; filled++; }
@@ -686,36 +687,49 @@ function generarAsignacionDesdePrepantilla(){
   let numeracion = 1;
   prepRows.forEach(p => {
     const conductor = (p.CONDUCTOR||'').trim();
-    if(!conductor) return;
     const auxList = AUX_LABELS.map(l => (p[l]||'').trim()).filter(v=>v);
+    if(!conductor && !auxList.length) return; // fila totalmente vacía, nada que generar
 
-    const conductorInfo = resolveEstadoProcedencia(conductor);
-    out.push({
-      _id: 'a'+(asigIdCounter++),
-      'NUMERACION': numeracion, 'SALA(Agencia)': sala, 'CANAL(Sala': canal, 'FECHA': fecha,
-      'HORA DE SALIDA': '', 'DIA': dia, 'MES': mes,
-      'ESTADO LAB.': conductorInfo.estado,
-      'PROCEDENCIA': conductorInfo.procedencia,
-      'CARGO': CARGO_CONDUCTOR, 'PERSONAL': conductor, 'PLACA': p.PLACA||'', 'ZONA ROJA': 0,
-      'TIPO': p.TP||'', 'RECARGA': '', 'PALLETS': '', 'AUXILIARES': auxList.length, 'RECURSO': '',
-      'ID de ruta': p.RUTA||'', 'TOTAL HORAS': p.HORAS||'', 'Distancia KM': p.DISTANCIAS||'',
-      'Paradas': p.PARADAS||'', '% de capacidad': p.PARADAS||'', 'Equivalen': '', 'Peso': p.PESO||'',
-      'Paquetes': p.CAJAS||'', 'ZONA': zona, 'Km Real': '', 'TR Real': '',
-      'NUMERO DE TRANSPORTE': p.TRANS||'', 'NUMERO CELULAR': p.TEL||'', 'DISTRITO': p.DISTRITO||'',
-    });
+    if(conductor){
+      const conductorInfo = resolveEstadoProcedencia(conductor);
+      out.push({
+        _id: 'a'+(asigIdCounter++),
+        'NUMERACION': numeracion, 'SALA(Agencia)': sala, 'CANAL(Sala': canal, 'FECHA': fecha,
+        'HORA DE SALIDA': '', 'DIA': dia, 'MES': mes,
+        'ESTADO LAB.': conductorInfo.estado,
+        'PROCEDENCIA': conductorInfo.procedencia,
+        'CARGO': CARGO_CONDUCTOR, 'PERSONAL': conductor, 'PLACA': p.PLACA||'', 'ZONA ROJA': 0,
+        'TIPO': p.TP||'', 'RECARGA': '', 'PALLETS': '', 'AUXILIARES': auxList.length, 'RECURSO': '',
+        'ID de ruta': p.RUTA||'', 'TOTAL HORAS': p.HORAS||'', 'Distancia KM': p.DISTANCIAS||'',
+        'Paradas': p.PARADAS||'', '% de capacidad': p.PARADAS||'', 'Equivalen': '', 'Peso': p.PESO||'',
+        'Paquetes': p.CAJAS||'', 'ZONA': zona, 'Km Real': '', 'TR Real': '',
+        'NUMERO DE TRANSPORTE': p.TRANS||'', 'NUMERO CELULAR': p.TEL||'', 'DISTRITO': p.DISTRITO||'',
+      });
+    }
 
-    auxList.forEach(nombre => {
+    auxList.forEach((nombre, idx) => {
       const info = resolveEstadoProcedencia(nombre);
+      const esHeader = !conductor && idx === 0; // sin chofer: el primer auxiliar lleva los datos de la ruta
+      const camposRuta = esHeader ? {
+        'ZONA ROJA': 0, 'TIPO': p.TP||'', 'AUXILIARES': auxList.length,
+        'TOTAL HORAS': p.HORAS||'', 'Distancia KM': p.DISTANCIAS||'', 'Paradas': p.PARADAS||'',
+        '% de capacidad': p.PARADAS||'', 'Paquetes': p.CAJAS||'',
+        'NUMERO DE TRANSPORTE': p.TRANS||'', 'NUMERO CELULAR': p.TEL||'', 'DISTRITO': p.DISTRITO||'',
+      } : {
+        'ZONA ROJA': '', 'TIPO': '', 'AUXILIARES': '',
+        'TOTAL HORAS': '', 'Distancia KM': '', 'Paradas': '',
+        '% de capacidad': '', 'Paquetes': '',
+        'NUMERO DE TRANSPORTE': '', 'NUMERO CELULAR': '', 'DISTRITO': '',
+      };
       out.push({
         _id: 'a'+(asigIdCounter++),
         'NUMERACION': numeracion, 'SALA(Agencia)': sala, 'CANAL(Sala': canal, 'FECHA': fecha,
         'HORA DE SALIDA': '', 'DIA': dia, 'MES': mes,
         'ESTADO LAB.': info.estado, 'PROCEDENCIA': info.procedencia,
-        'CARGO': CARGO_AUXILIAR, 'PERSONAL': nombre, 'PLACA': p.PLACA||'', 'ZONA ROJA': '',
-        'TIPO': '', 'RECARGA': '', 'PALLETS': '', 'AUXILIARES': '', 'RECURSO': '',
-        'ID de ruta': p.RUTA||'', 'TOTAL HORAS': '', 'Distancia KM': '', 'Paradas': '',
-        '% de capacidad': '', 'Equivalen': '', 'Peso': p.PESO||'', 'Paquetes': '', 'ZONA': zona,
-        'Km Real': '', 'TR Real': '', 'NUMERO DE TRANSPORTE': '', 'NUMERO CELULAR': '', 'DISTRITO': '',
+        'CARGO': CARGO_AUXILIAR, 'PERSONAL': nombre, 'PLACA': p.PLACA||'',
+        'RECARGA': '', 'PALLETS': '', 'RECURSO': '',
+        'ID de ruta': p.RUTA||'', 'Equivalen': '', 'Peso': p.PESO||'', 'ZONA': zona, 'Km Real': '', 'TR Real': '',
+        ...camposRuta,
       });
     });
     numeracion++;
