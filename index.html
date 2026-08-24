@@ -319,9 +319,10 @@ const SUFFIX_PROCEDENCIA = {
 };
 function resolveEstadoProcedencia(personName){
   const name = String(personName||'');
+  if(!name.trim()) return { estado: '', procedencia: '' };
   for(const suf in SUFFIX_PROCEDENCIA){
     if(name.includes('- '+suf)){
-      return { estado: '', procedencia: SUFFIX_PROCEDENCIA[suf] };
+      return { estado: 'EVENTUAL', procedencia: SUFFIX_PROCEDENCIA[suf] };
     }
   }
   const empresa = lookupEmpresaFijo(name);
@@ -330,7 +331,7 @@ function resolveEstadoProcedencia(personName){
     const procedencia = empresaNorm === 'JAZ HOLDING' ? 'EVENTUAL 5' : empresa;
     return { estado: 'FIJO', procedencia };
   }
-  return { estado: '', procedencia: '' };
+  return { estado: 'EVENTUAL', procedencia: '' };
 }
 function findAttendanceMatch(cleanName){
   const words = normalizeName(cleanName).split(' ').filter(Boolean);
