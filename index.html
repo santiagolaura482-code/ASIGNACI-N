@@ -306,7 +306,10 @@ async function parseAttendanceFile(file){
 function lookupEmpresaFijo(personName){
   const words = normalizeName(personName).split(' ').filter(Boolean);
   if(!words.length) return null;
-  const candidates = attendanceRows.filter(r => words.every(w => r.words.includes(w)));
+  const candidates = attendanceRows.filter(r =>
+    words.every(w => r.words.includes(w)) &&
+    words.some(w => r.words.slice(0,2).includes(w))
+  );
   if(!candidates.length) return null;
   return candidates[0].empresa || '';
 }
@@ -336,7 +339,10 @@ function resolveEstadoProcedencia(personName){
 function findAttendanceMatch(cleanName){
   const words = normalizeName(cleanName).split(' ').filter(Boolean);
   if(!words.length) return {name:null, ambiguous:false};
-  const candidates = attendanceRows.filter(r => words.every(w => r.words.includes(w)));
+  const candidates = attendanceRows.filter(r =>
+    words.every(w => r.words.includes(w)) &&
+    words.some(w => r.words.slice(0,2).includes(w))
+  );
   if(!candidates.length) return {name:null, ambiguous:false};
   return {name: candidates[0].name, ambiguous: candidates.length > 1};
 }
