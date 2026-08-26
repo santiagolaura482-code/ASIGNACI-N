@@ -570,7 +570,8 @@ async function parseChecklistFile(file){
   const clHeaderIdx = findHeaderRow(clAoa, ['TRANSPORTE','PLACAS']);
   if(clHeaderIdx >= 0){
     const colMap = buildColMap(clAoa[clHeaderIdx]);
-    const cTrans = colMap['TRANSPORTE'], cCodigo = colMap['CODIGO'], cPlaca = colMap['PLACAS'], cTipo = colMap['TIPO'];
+    const cTrans = colMap['TRANSPORTE'], cCodigo = colMap['CODIGO'], cPlaca = colMap['PLACAS'], cTipo = colMap['TIPO'],
+          cDistrito = findColByIncludes(colMap, 'DISTRITO');
     for(let r=clHeaderIdx+1; r<clAoa.length; r++){
       const row = clAoa[r];
       if(!row || row.every(c=>c==='' || c==null)) continue;
@@ -580,6 +581,7 @@ async function parseChecklistFile(file){
       if(cTrans!=null) map[ruta].trans = cleanTel(row[cTrans]);
       if(cPlaca!=null) map[ruta].placa = String(row[cPlaca]||'').trim();
       if(cTipo!=null) map[ruta].tipo = String(row[cTipo]||'').trim();
+      if(cDistrito!=null) map[ruta].distrito = String(row[cDistrito]||'').trim();
     }
   }
 
@@ -632,6 +634,7 @@ function applyChecklistData(map){
     else if(data.cajas!=null && data.cajas!=='' && p._cajasFromAgenda){ p.CAJAS = data.cajas; filled++; }
     if(!p['CANT. PAQ.'] && data.cantPaq!=null && data.cantPaq!==''){ p['CANT. PAQ.'] = data.cantPaq; filled++; }
     if(!p.PESO && data.peso!=null && data.peso!==''){ p.PESO = data.peso; filled++; }
+    if(!p.DISTRITO && data.distrito){ p.DISTRITO = data.distrito; filled++; }
   });
   asigRows.forEach(a => {
     const data = map[String(a['ID de ruta']).trim()];
@@ -647,6 +650,7 @@ function applyChecklistData(map){
       if(!a['% de capacidad'] && data.capacidad!=null && data.capacidad!==''){ a['% de capacidad'] = data.capacidad; filled++; }
       if(!a['Paquetes'] && data.cajas!=null && data.cajas!==''){ a['Paquetes'] = data.cajas; filled++; }
       if(!a['Peso'] && data.peso!=null && data.peso!==''){ a['Peso'] = data.peso; filled++; }
+      if(!a['DISTRITO'] && data.distrito){ a['DISTRITO'] = data.distrito; filled++; }
     } else {
       if(!a['PLACA'] && data.placa){ a['PLACA'] = data.placa; filled++; }
       if(!a['Peso'] && data.peso!=null && data.peso!==''){ a['Peso'] = data.peso; filled++; }
@@ -1041,6 +1045,7 @@ const ASIG_THOUSANDS_COL = 25; // Paquetes
 const ASIG_INTEGER_COLS = new Set([16,20]); // AUXILIARES, Distancia KM
 const ASIG_DATE_COL = 3; // FECHA
 const ASIG_PERSONAL_COL = 10; // PERSONAL (se resalta en la fila del conductor)
+const ASIG_CARGO_COL = 9; // CARGO (también se resalta en la fila del conductor)
 
 function xmlEscape(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1062,16 +1067,21 @@ function buildStylesXml(){
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>
-<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="4">
+<fonts count="3">
+<font><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+</fonts>
+<fills count="5">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/><bgColor indexed="64"/></patternFill></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FFFFC000"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF70AD47"/><bgColor indexed="64"/></patternFill></fill>
 </fills>
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="9">
+<cellXfs count="10">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>
@@ -1081,25 +1091,23 @@ function buildStylesXml(){
 <xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 <xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
 }
 // Índices de estilo (deben coincidir con el orden de cellXfs arriba)
-const XF_DEFAULT=0, XF_BOLD=1, XF_RED=2, XF_BOLD_ORANGE=3, XF_ORANGE=4, XF_DATE=5, XF_INT=6, XF_PCT=7, XF_THOUSANDS=8;
+const XF_DEFAULT=0, XF_BOLD=1, XF_RED=2, XF_BOLD_ORANGE=3, XF_ORANGE=4, XF_DATE=5, XF_INT=6, XF_PCT=7, XF_THOUSANDS=8, XF_HEADER=9;
 
 function styleForHeaderCell(colIdx){
-  if(ASIG_ORANGE_HEADER_COLS.has(colIdx)) return XF_BOLD_ORANGE;
-  if(ASIG_RED_HEADER_COLS.has(colIdx)) return XF_RED;
-  if(ASIG_BOLD_HEADER_COLS.has(colIdx)) return XF_BOLD;
-  return XF_DEFAULT;
+  return XF_HEADER;
 }
 function styleForBodyCell(colIdx, row){
   if(colIdx === ASIG_DATE_COL) return XF_DATE;
   if(colIdx === ASIG_PERCENT_COL) return XF_PCT;
   if(colIdx === ASIG_THOUSANDS_COL) return XF_THOUSANDS;
   if(ASIG_INTEGER_COLS.has(colIdx)) return XF_INT;
-  if(colIdx === ASIG_PERSONAL_COL && row['CARGO'] === CARGO_CONDUCTOR) return XF_ORANGE;
+  if((colIdx === ASIG_PERSONAL_COL || colIdx === ASIG_CARGO_COL) && row['CARGO'] === CARGO_CONDUCTOR) return XF_ORANGE;
   return XF_DEFAULT;
 }
 
