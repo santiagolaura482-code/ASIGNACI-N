@@ -286,7 +286,8 @@ async function parseAttendanceFile(file){
   let text;
   try{ text = new TextDecoder('windows-1252').decode(buf); }
   catch(e){ text = new TextDecoder('utf-8').decode(buf); }
-  const delimiter = text.split('\n')[0].includes('\t') ? '\t' : ',';
+  const firstLine = text.split('\n')[0];
+  const delimiter = firstLine.includes('\t') ? '\t' : (firstLine.includes(';') ? ';' : ',');
   const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length);
   if(!lines.length) return [];
   const headers = lines[0].split(delimiter).map(h => normalizeHeader(h));
