@@ -78,6 +78,7 @@
   td.tag-dino{color:var(--red);}
   td.tag-cardenas{color:var(--blue);}
   td.tag-gahu{color:var(--amber);}
+  td.tag-sumelec{color:#a855f7;}
   td.tag-matched{color:var(--green);}
   td.tag-ambiguous{background:rgba(245,158,11,.18);}
   td.needs-review{background:rgba(245,158,11,.10);}
@@ -214,6 +215,7 @@
       <span><span class="dot2" style="background:var(--red);"></span>DINO (rojo, sin match)</span>
       <span><span class="dot2" style="background:var(--blue);"></span>CARDENAS (azul / "(C)")</span>
       <span><span class="dot2" style="background:var(--amber);"></span>GAHU ("(G)")</span>
+      <span><span class="dot2" style="background:#a855f7;"></span>SUMELEC ("(S)")</span>
       <span><span class="swatch" style="background:rgba(245,158,11,.5); width:10px; height:10px; display:inline-block; border-radius:2px; margin-right:5px; vertical-align:middle;"></span>Campo no incluido en la Agenda — completar a mano</span>
     </div>
   </div>
@@ -320,6 +322,7 @@ const SUFFIX_PROCEDENCIA = {
   'GAHU': 'EVENTUAL 2',
   'CARDENAS': 'EVENTUAL 11',
   'SEMELEC': 'EVENTUAL',
+  'SUMELEC': 'EVENTUAL 21',
 };
 function resolveEstadoProcedencia(personName){
   const name = String(personName||'');
@@ -466,6 +469,7 @@ function resolvePersona(cellObj){
   const clean = raw.replace(/\(.*?\)/g,'').trim();
   const hasG = /\(G\)/i.test(raw);
   const hasC = /\(C\)/i.test(raw);
+  const hasS = /\(S\)/i.test(raw);
   const rgb = cellObj.rgb ? cellObj.rgb.slice(-6).toUpperCase() : null;
   const isRed = rgb === 'FF0000';
   const isBlue = rgb === '0000FF';
@@ -473,13 +477,14 @@ function resolvePersona(cellObj){
   if(isRed) tag = 'DINO';
   else if(isBlue || hasC) tag = 'CARDENAS';
   else if(hasG) tag = 'GAHU';
+  else if(hasS) tag = 'SUMELEC';
 
-  // Un marcador de texto explícito ((G) o (C)) es una marca deliberada de quien arma
+  // Un marcador de texto explícito ((G), (C) o (S)) es una marca deliberada de quien arma
   // la agenda, y tiene prioridad sobre un cruce automático contra asistencia — esto
-  // evita que alguien marcado como GAHU/CARDENAS termine identificado por un cruce
+  // evita que alguien marcado como GAHU/CARDENAS/SUMELEC termine identificado por un cruce
   // casual de nombre (GAHU, a diferencia de DINO/CARDENAS, sí puede aparecer también
   // como empresa real en asistencia).
-  if(hasG || hasC){
+  if(hasG || hasC || hasS){
     return { final: `${clean} - ${tag}`, matched:false, ambiguous:false, tag };
   }
 
@@ -779,6 +784,7 @@ function renderPrepTable(){
         else if(meta.tag==='DINO') cls='tag-dino';
         else if(meta.tag==='CARDENAS') cls='tag-cardenas';
         else if(meta.tag==='GAHU') cls='tag-gahu';
+        else if(meta.tag==='SUMELEC') cls='tag-sumelec';
         if(meta.ambiguous) cls += ' tag-ambiguous';
       } else if(PREP_MANUAL.has(c) && val===''){
         cls = 'needs-review';
