@@ -79,6 +79,7 @@
   td.tag-cardenas{color:var(--blue);}
   td.tag-gahu{color:var(--amber);}
   td.tag-sumelec{color:#a855f7;}
+  td.tag-jca{color:#06b6d4;}
   td.tag-matched{color:var(--green);}
   td.tag-ambiguous{background:rgba(245,158,11,.18);}
   td.needs-review{background:rgba(245,158,11,.10);}
@@ -216,6 +217,7 @@
       <span><span class="dot2" style="background:var(--blue);"></span>CARDENAS (azul / "(C)")</span>
       <span><span class="dot2" style="background:var(--amber);"></span>GAHU ("(G)")</span>
       <span><span class="dot2" style="background:#a855f7;"></span>SUMELEC ("(S)")</span>
+      <span><span class="dot2" style="background:#06b6d4;"></span>JCA ("(J)")</span>
       <span><span class="swatch" style="background:rgba(245,158,11,.5); width:10px; height:10px; display:inline-block; border-radius:2px; margin-right:5px; vertical-align:middle;"></span>Campo no incluido en la Agenda — completar a mano</span>
     </div>
   </div>
@@ -317,18 +319,27 @@ function lookupEmpresaFijo(personName){
   return candidates[0].empresa || '';
 }
 
+const TAG_SUFFIX_TEXT = {
+  'DINO': ' - DINO',
+  'GAHU': ' - GAHU',
+  'CARDENAS': ' - CARDENAS',
+  'SEMELEC': ' - SEMELEC',
+  'SUMELEC': ' - SUMELEC',
+  'JCA': '-JCA',
+};
 const SUFFIX_PROCEDENCIA = {
   'DINO': 'EVENTUAL 5',
   'GAHU': 'EVENTUAL 2',
   'CARDENAS': 'EVENTUAL 11',
   'SEMELEC': 'EVENTUAL',
   'SUMELEC': 'EVENTUAL 21',
+  'JCA': '',
 };
 function resolveEstadoProcedencia(personName){
   const name = String(personName||'');
   if(!name.trim()) return { estado: '', procedencia: '' };
-  for(const suf in SUFFIX_PROCEDENCIA){
-    if(name.includes('- '+suf)){
+  for(const suf in TAG_SUFFIX_TEXT){
+    if(name.includes(TAG_SUFFIX_TEXT[suf])){
       return { estado: 'EVENTUAL', procedencia: SUFFIX_PROCEDENCIA[suf] };
     }
   }
@@ -470,6 +481,7 @@ function resolvePersona(cellObj){
   const hasG = /\(G\)/i.test(raw);
   const hasC = /\(C\)/i.test(raw);
   const hasS = /\(S\)/i.test(raw);
+  const hasJ = /\(J\)/i.test(raw);
   const rgb = cellObj.rgb ? cellObj.rgb.slice(-6).toUpperCase() : null;
   const isRed = rgb === 'FF0000';
   const isBlue = rgb === '0000FF';
@@ -478,19 +490,20 @@ function resolvePersona(cellObj){
   else if(isBlue || hasC) tag = 'CARDENAS';
   else if(hasG) tag = 'GAHU';
   else if(hasS) tag = 'SUMELEC';
+  else if(hasJ) tag = 'JCA';
 
-  // Un marcador de texto explícito ((G), (C) o (S)) es una marca deliberada de quien arma
+  // Un marcador de texto explícito ((G), (C), (S) o (J)) es una marca deliberada de quien arma
   // la agenda, y tiene prioridad sobre un cruce automático contra asistencia — esto
-  // evita que alguien marcado como GAHU/CARDENAS/SUMELEC termine identificado por un cruce
+  // evita que alguien marcado como GAHU/CARDENAS/SUMELEC/JCA termine identificado por un cruce
   // casual de nombre (GAHU, a diferencia de DINO/CARDENAS, sí puede aparecer también
   // como empresa real en asistencia).
-  if(hasG || hasC || hasS){
-    return { final: `${clean} - ${tag}`, matched:false, ambiguous:false, tag };
+  if(hasG || hasC || hasS || hasJ){
+    return { final: `${clean}${TAG_SUFFIX_TEXT[tag]}`, matched:false, ambiguous:false, tag };
   }
 
   const {name: match, ambiguous} = findAttendanceMatch(clean);
   if(match) return { final: match, matched:true, ambiguous, tag:'' };
-  return { final: tag ? `${clean} - ${tag}` : clean, matched:false, ambiguous:false, tag };
+  return { final: tag ? `${clean}${TAG_SUFFIX_TEXT[tag]}` : clean, matched:false, ambiguous:false, tag };
 }
 
 async function processAgendaToPrepantilla(file){
@@ -785,6 +798,7 @@ function renderPrepTable(){
         else if(meta.tag==='CARDENAS') cls='tag-cardenas';
         else if(meta.tag==='GAHU') cls='tag-gahu';
         else if(meta.tag==='SUMELEC') cls='tag-sumelec';
+        else if(meta.tag==='JCA') cls='tag-jca';
         if(meta.ambiguous) cls += ' tag-ambiguous';
       } else if(PREP_MANUAL.has(c) && val===''){
         cls = 'needs-review';
