@@ -98,6 +98,18 @@
 
   .toast{position:fixed; bottom:20px; right:20px; background:var(--panel2); border:1px solid var(--amber); color:var(--text); padding:12px 18px; border-radius:8px; font-size:13px; box-shadow:0 4px 20px rgba(0,0,0,.4); opacity:0; transform:translateY(10px); transition:.25s; pointer-events:none; z-index:50;}
   .toast.show{opacity:1; transform:translateY(0);}
+
+  @media (max-width: 760px){
+    body{flex-direction:column; height:auto; min-height:100vh; overflow:auto;}
+    .sidebar{width:100%; max-height:none; overflow-y:visible; border-right:none; border-bottom:1px solid var(--border);}
+    .main{padding:16px; min-height:60vh;}
+    .table-wrap{max-height:60vh;}
+    .topbar{flex-direction:column; align-items:stretch; gap:10px;}
+    .toolbar{flex-wrap:wrap;}
+    .search{width:100%;}
+    .empty{height:auto; padding:30px 10px;}
+    table{font-size:11.5px;}
+  }
 </style>
 </head>
 <body>
@@ -117,14 +129,14 @@
       <b>Sin cargar</b>
       Carga el archivo de asistencia una vez; luego solo necesitas cargar la Agenda cada día.
     </div>
-    <input type="file" id="fileAsistencia" accept=".csv,.txt">
+    <input type="file" id="fileAsistencia">
     <button class="btn" id="btnLoadAsistencia">📂 Cargar / actualizar Asistencia</button>
     <button class="btn" id="btnDeleteAsistencia" style="display:none;">✕ Eliminar Asistencia cargada</button>
   </div>
 
   <div class="side-section">
     <div class="side-label">Agenda del día (.xlsx)</div>
-    <input type="file" id="fileAgenda" accept=".xlsx,.xls">
+    <input type="file" id="fileAgenda">
     <button class="btn btn-primary" id="btnLoadAgenda">📂 Cargar Agenda → generar Prepantilla</button>
     <div class="filename-row">
       <div class="filename" id="fileNameAgenda">Ningún archivo cargado</div>
@@ -161,7 +173,7 @@
 
   <div class="side-section" id="checklistBox" style="display:none;">
     <div class="side-label">Checklist (completa datos faltantes)</div>
-    <input type="file" id="fileChecklist" accept=".xlsx,.xls">
+    <input type="file" id="fileChecklist">
     <button class="btn" id="btnLoadChecklist">📂 Cargar Checklist</button>
     <div class="filename-row">
       <div class="filename" id="fileNameChecklist">Ningún archivo cargado</div>
